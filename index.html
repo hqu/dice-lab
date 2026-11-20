@@ -1,0 +1,549 @@
+<title>Classroom Dice Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: title block left, scenario switches pinned top right, then stats, shared legend, and two chart panels side by side. */
+:root {
+  --bg: #f3f6f6;
+  --surface: #ffffff;
+  --fg: #13201e;
+  --muted: #566863;
+  --line: #d6e0dd;
+  --line-strong: #a9bab5;
+  --accent: #17806f;
+  --on-accent: #ffffff;
+  --male: #3566c9;
+  --female: #d4781e;
+  --ghost: #566863;
+  --focus: #17806f;
+  --shadow: 0 8px 24px rgba(10, 30, 26, 0.16);
+  --font-display: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1514;
+    --surface: #16211f;
+    --fg: #e5eeeb;
+    --muted: #97aba5;
+    --line: #27383a;
+    --line-strong: #4a615b;
+    --accent: #3fc1a8;
+    --on-accent: #06201a;
+    --male: #6f9cff;
+    --female: #f2a14d;
+    --ghost: #97aba5;
+    --focus: #3fc1a8;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1514;
+  --surface: #16211f;
+  --fg: #e5eeeb;
+  --muted: #97aba5;
+  --line: #27383a;
+  --line-strong: #4a615b;
+  --accent: #3fc1a8;
+  --on-accent: #06201a;
+  --male: #6f9cff;
+  --female: #f2a14d;
+  --ghost: #97aba5;
+  --focus: #3fc1a8;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.page { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.page > * { min-width: 0; }
+
+/* Header */
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.title { min-width: 0; max-width: 60ch; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.6rem, 3.2vw, 2.1rem); line-height: 1.15; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); }
+
+.scenarios { display: flex; gap: 10px; flex-shrink: 0; }
+.scn { position: relative; }
+.sw {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: var(--surface); color: var(--fg);
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: 8px 16px 8px 10px; cursor: pointer;
+  font: 500 14px var(--font-body); white-space: nowrap;
+}
+.sw[aria-checked="true"] { border-color: var(--accent); }
+.sw:focus-visible, .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--line-strong); flex-shrink: 0; transition: background 0.15s; }
+.knob { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform 0.15s; }
+.sw[aria-checked="true"] .track { background: var(--accent); }
+.sw[aria-checked="true"] .knob { transform: translateX(16px); }
+
+.tip {
+  display: none; position: absolute; top: 100%; right: 0; z-index: 20;
+  margin-top: 8px; width: min(300px, calc(100vw - 32px));
+  background: var(--fg); color: var(--bg);
+  border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.5;
+  box-shadow: var(--shadow);
+}
+.tip::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 8px; }
+.tip strong { display: block; font-family: var(--font-display); font-size: 14px; margin-bottom: 4px; }
+.scn:hover .tip, .scn:focus-within .tip { display: block; }
+
+/* Controls and stats */
+.bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.btn {
+  font: 600 14px var(--font-body); background: var(--accent); color: var(--on-accent);
+  border: 0; border-radius: 8px; padding: 10px 16px; min-height: 40px; cursor: pointer;
+}
+.btn:hover { filter: brightness(1.08); }
+.meta { color: var(--muted); font-size: 13px; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 24px; }
+.stat { border-top: 2px solid var(--line); padding-top: 8px; min-width: 0; }
+.stat .k { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat .d { font-size: 12px; color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--muted); }
+.lg { display: inline-flex; align-items: center; gap: 7px; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.key.all { background: var(--accent); }
+.key.m { background: var(--male); }
+.key.f { background: var(--female); }
+.key.ghost { border: 1.5px dashed var(--ghost); }
+.key.ring { border: 2px solid var(--fg); border-radius: 50%; }
+
+/* Charts */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.panel h2 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 2px; }
+.panel p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.plot { position: relative; min-width: 0; }
+.plot svg { display: block; max-width: 100%; }
+.ctip {
+  position: absolute; pointer-events: none; z-index: 5; max-width: min(260px, 100%);
+  background: var(--fg); color: var(--bg); border-radius: 8px; padding: 8px 10px;
+  font-size: 12px; line-height: 1.45; box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
+}
+.ctip .dim { opacity: 0.8; }
+.note { margin: 0; font-size: 13px; color: var(--muted); max-width: 80ch; }
+
+/* SVG parts */
+.grid { stroke: var(--line); stroke-width: 1; }
+.axis { stroke: var(--line-strong); stroke-width: 1; }
+.tick { fill: var(--muted); font: 11px var(--font-body); font-variant-numeric: tabular-nums; }
+.atitle { fill: var(--muted); font: 500 12px var(--font-body); }
+.b-all { fill: var(--accent); }
+.b-m { fill: var(--male); }
+.b-f { fill: var(--female); }
+.ghost { fill: none; stroke: var(--ghost); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.hit { fill: transparent; }
+.hit:hover { fill: var(--fg); fill-opacity: 0.07; }
+.ref { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
+.pt { fill-opacity: 0.62; stroke: var(--surface); stroke-width: 0.8; }
+.pt-all { fill: var(--accent); }
+.pt-m { fill: var(--male); }
+.pt-f { fill: var(--female); }
+.ring { fill: none; stroke: var(--fg); stroke-width: 1.5; }
+.hl { fill: none; stroke: var(--fg); stroke-width: 2; opacity: 0; pointer-events: none; }
+.hl.on { opacity: 1; }
+
+@media (max-width: 720px) {
+  .top { flex-direction: column; align-items: stretch; }
+  .scenarios { flex-direction: column; width: 100%; }
+  .tip { left: 0; right: 0; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .track, .knob { transition: none; }
+}
+</style>
+
+<div class="page">
+  <header class="top">
+    <div class="title">
+      <h1>Classroom Dice Lab</h1>
+      <p class="sub">100 students each roll two dice five times. Switch on a scenario to see how one small rule shifts the whole class.</p>
+    </div>
+    <div class="scenarios" role="group" aria-label="Bias scenarios">
+      <div class="scn">
+        <button type="button" class="sw" id="sw-rich" role="switch" aria-checked="false" aria-describedby="tip-rich">
+          <span class="track"><span class="knob"></span></span><span>Rich get richer</span>
+        </button>
+        <div class="tip" role="tooltip" id="tip-rich">
+          <strong>Rich get richer</strong>
+          If a student's first roll totals more than 10 (an 11 or 12), every later die that shows a 1 or 2 is rolled again once, and the new number is kept. Everyone else rolls as normal.
+        </div>
+      </div>
+      <div class="scn">
+        <button type="button" class="sw" id="sw-gender" role="switch" aria-checked="false" aria-describedby="tip-gender">
+          <span class="track"><span class="knob"></span></span><span>Gender bias</span>
+        </button>
+        <div class="tip" role="tooltip" id="tip-gender">
+          <strong>Gender bias</strong>
+          Students 1 to 50 are male and students 51 to 100 are female. Every die a female student rolls has 0.5 subtracted from its value, so her total drops by 5 points over ten dice. Male students are unchanged.
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <button type="button" class="btn" id="reroll">Roll a new class</button>
+    <span class="meta">100 students · 5 rolls each · 2 dice per roll</span>
+  </div>
+
+  <section class="stats" id="stats" aria-live="polite"></section>
+  <div class="legend" id="legend"></div>
+
+  <main class="charts">
+    <section class="panel">
+      <h2>Total of all five rolls</h2>
+      <p>Number of students at each total score (all 10 dice added up).</p>
+      <div class="plot" id="hist"><div class="svgwrap"></div><div class="ctip" hidden></div></div>
+    </section>
+    <section class="panel">
+      <h2>Die 1 total vs die 2 total</h2>
+      <p>One dot per student, 100 in all. Across five rolls, x adds the first die and y adds the second.</p>
+      <div class="plot" id="scat"><div class="svgwrap"></div><div class="ctip" hidden></div></div>
+    </section>
+  </main>
+
+  <p class="note">Switching a scenario reuses the same rolls, so you are always comparing the same class. Re-rolls happen once per die and are decided on the dice as thrown; the 0.5 deduction is applied afterward. Roll a new class for fresh dice.</p>
+</div>
+
+<script>
+(function () {
+  var N = 100, ROLLS = 5, MALE_N = 50;
+  var state = { rich: false, gender: false };
+  var data = null;
+
+  function $(id) { return document.getElementById(id); }
+  function ri() { return 1 + Math.floor(Math.random() * 6); }
+  function key() { return '' + (state.rich ? 1 : 0) + (state.gender ? 1 : 0); }
+  function mean(a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return a.length ? s / a.length : 0; }
+  function f1(v) { return v.toFixed(1); }
+  function fv(v) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+  function signed(d) { if (Math.abs(d) < 0.05) return '0.0'; return (d > 0 ? '+' : '−') + Math.abs(d).toFixed(1); }
+
+  /* ---------- simulation ---------- */
+  function compute(st, i, rich, gender) {
+    var eligible = rich && (st.base[0][0] + st.base[0][1] > 10);
+    var x = 0, y = 0, rerolls = 0, rolls = [];
+    for (var r = 0; r < ROLLS; r++) {
+      var v = [0, 0], rr = [false, false];
+      for (var k = 0; k < 2; k++) {
+        var val = st.base[r][k];
+        if (eligible && val <= 2) { val = st.spare[r][k]; rr[k] = true; rerolls++; }
+        if (gender && st.female) val -= 0.5;
+        v[k] = val;
+      }
+      rolls.push({ v: v, rr: rr });
+      x += v[0]; y += v[1];
+    }
+    return { i: i, female: st.female, eligible: eligible, rerolls: rerolls, x: x, y: y, total: x + y, rolls: rolls };
+  }
+
+  function newClass() {
+    var students = [];
+    for (var s = 0; s < N; s++) {
+      var base = [], spare = [];
+      for (var r = 0; r < ROLLS; r++) { base.push([ri(), ri()]); spare.push([ri(), ri()]); }
+      students.push({ base: base, spare: spare, female: s >= MALE_N });
+    }
+    var res = {};
+    [0, 1].forEach(function (rich) {
+      [0, 1].forEach(function (g) {
+        res['' + rich + g] = students.map(function (st, i) { return compute(st, i, !!rich, !!g); });
+      });
+    });
+    data = { res: res };
+    buildDomains();
+  }
+
+  function buildDomains() {
+    var mn = Infinity, mx = -Infinity, k, i;
+    for (k in data.res) for (i = 0; i < data.res[k].length; i++) {
+      mn = Math.min(mn, data.res[k][i].total); mx = Math.max(mx, data.res[k][i].total);
+    }
+    var lo = Math.floor(mn / 2) * 2, hi = Math.floor(mx / 2) * 2 + 2, bins = (hi - lo) / 2;
+    var counts = {}, ymax = 0;
+    for (k in data.res) {
+      var m = [], f = [], b;
+      for (b = 0; b < bins; b++) { m.push(0); f.push(0); }
+      data.res[k].forEach(function (r) { var bi = Math.floor((r.total - lo) / 2); (r.female ? f : m)[bi]++; });
+      counts[k] = { m: m, f: f };
+      for (b = 0; b < bins; b++) ymax = Math.max(ymax, m[b] + f[b]);
+    }
+    var step = 1, cand = [1, 2, 5, 10, 20];
+    for (i = 0; i < cand.length; i++) { step = cand[i]; if (Math.ceil((ymax + 1) / step) <= 6) break; }
+    data.dom = { lo: lo, hi: hi, bins: bins, yStep: step, yTop: Math.ceil((ymax + 1) / step) * step };
+    data.counts = counts;
+  }
+
+  /* ---------- stats and legend ---------- */
+  function renderStats() {
+    var cur = data.res[key()], base = data.res['00'];
+    var mc = mean(cur.map(function (r) { return r.total; }));
+    var mb = mean(base.map(function (r) { return r.total; }));
+    var tiles = [
+      ['Class average', f1(mc), 'total of all 10 dice'],
+      ['Fair dice would average', '35.0', '10 dice × 3.5'],
+      ['Shift from no bias', signed(mc - mb), 'same class, same rolls']
+    ];
+    if (state.gender) {
+      var mm = mean(cur.filter(function (r) { return !r.female; }).map(function (r) { return r.total; }));
+      var mf = mean(cur.filter(function (r) { return r.female; }).map(function (r) { return r.total; }));
+      tiles.push(['Male / female average', f1(mm) + ' / ' + f1(mf), '50 students each']);
+    }
+    if (state.rich) {
+      var el = cur.filter(function (r) { return r.eligible; }).length;
+      var rr = cur.reduce(function (a, r) { return a + r.rerolls; }, 0);
+      tiles.push(['Students with re-rolls', String(el), rr + ' dice re-rolled']);
+    }
+    $('stats').innerHTML = tiles.map(function (t) {
+      return '<div class="stat"><div class="k">' + t[0] + '</div><div class="v">' + t[1] + '</div><div class="d">' + t[2] + '</div></div>';
+    }).join('');
+  }
+
+  function renderLegend() {
+    var items = [];
+    if (state.gender) {
+      items.push('<span class="lg"><i class="key m"></i>Male (students 1–50)</span>');
+      items.push('<span class="lg"><i class="key f"></i>Female (students 51–100)</span>');
+    } else {
+      items.push('<span class="lg"><i class="key all"></i>All students</span>');
+    }
+    if (state.rich || state.gender) items.push('<span class="lg"><i class="key ghost"></i>Histogram outline: same class with no bias</span>');
+    if (state.rich) items.push('<span class="lg"><i class="key ring"></i>Scatter ring: first roll over 10, so re-roll rights</span>');
+    $('legend').innerHTML = items.join('');
+  }
+
+  /* ---------- tooltip helper ---------- */
+  function placeTip(plot, tip, e) {
+    var r = plot.getBoundingClientRect();
+    tip.hidden = false;
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var x = e.clientX - r.left + 14, y = e.clientY - r.top + 14;
+    if (x + tw > r.width) x = e.clientX - r.left - tw - 14;
+    if (x < 0) x = 0;
+    if (y + th > r.height) y = e.clientY - r.top - th - 14;
+    if (y < 0) y = 0;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+
+  /* ---------- histogram ---------- */
+  function renderHist() {
+    var plot = $('hist'), wrap = plot.querySelector('.svgwrap');
+    var w = Math.floor(plot.clientWidth) || 360;
+    var h = Math.round(Math.min(360, Math.max(250, w * 0.6)));
+    var m = { t: 12, r: 10, b: 46, l: 42 }, iw = w - m.l - m.r, ih = h - m.t - m.b;
+    var D = data.dom, R = D.hi - D.lo;
+    function xs(v) { return m.l + (v - D.lo) / R * iw; }
+    function ys(c) { return m.t + ih - c / D.yTop * ih; }
+    var cur = data.counts[key()], base = data.counts['00'];
+    var showGhost = state.rich || state.gender;
+    var s = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Histogram of total scores for 100 students">';
+    var c, b;
+    for (c = 0; c <= D.yTop; c += D.yStep) {
+      var y = ys(c);
+      s += '<line class="grid" x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + y + '" y2="' + y + '"/>';
+      s += '<text class="tick" x="' + (m.l - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + c + '</text>';
+    }
+    var bw = Math.max(1, iw / D.bins - 2);
+    for (b = 0; b < D.bins; b++) {
+      var x0 = xs(D.lo + 2 * b) + 1;
+      var mc = cur.m[b], fc = cur.f[b];
+      if (state.gender) {
+        if (mc > 0) s += '<rect class="b-m" x="' + x0 + '" y="' + ys(mc) + '" width="' + bw + '" height="' + (ys(0) - ys(mc)) + '"/>';
+        if (fc > 0) s += '<rect class="b-f" x="' + x0 + '" y="' + ys(mc + fc) + '" width="' + bw + '" height="' + (ys(mc) - ys(mc + fc)) + '"/>';
+      } else if (mc + fc > 0) {
+        s += '<rect class="b-all" x="' + x0 + '" y="' + ys(mc + fc) + '" width="' + bw + '" height="' + (ys(0) - ys(mc + fc)) + '"/>';
+      }
+      var bc = base.m[b] + base.f[b];
+      if (showGhost && bc > 0) s += '<rect class="ghost" x="' + x0 + '" y="' + ys(bc) + '" width="' + bw + '" height="' + (ys(0) - ys(bc)) + '"/>';
+    }
+    s += '<line class="axis" x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + ys(0) + '" y2="' + ys(0) + '"/>';
+    var step = 2, cand = [2, 4, 6, 10, 20], maxLabels = Math.floor(iw / 34);
+    for (var i = 0; i < cand.length; i++) { step = cand[i]; if (R / step <= maxLabels) break; }
+    for (var v = D.lo; v <= D.hi; v += step) {
+      s += '<line class="axis" x1="' + xs(v) + '" x2="' + xs(v) + '" y1="' + ys(0) + '" y2="' + (ys(0) + 4) + '"/>';
+      s += '<text class="tick" x="' + xs(v) + '" y="' + (ys(0) + 17) + '" text-anchor="middle">' + v + '</text>';
+    }
+    s += '<text class="atitle" x="' + (m.l + iw / 2) + '" y="' + (h - 8) + '" text-anchor="middle">Total of all 10 dice (bins of 2)</text>';
+    s += '<text class="atitle" transform="translate(12 ' + (m.t + ih / 2) + ') rotate(-90)" text-anchor="middle">Students</text>';
+    for (b = 0; b < D.bins; b++) {
+      s += '<rect class="hit" data-bin="' + b + '" x="' + xs(D.lo + 2 * b) + '" y="' + m.t + '" width="' + (iw / D.bins) + '" height="' + ih + '"/>';
+    }
+    s += '</svg>';
+    wrap.innerHTML = s;
+  }
+
+  function histTip(b) {
+    var D = data.dom, cur = data.counts[key()], base = data.counts['00'];
+    var a = D.lo + 2 * b;
+    var html = '<strong>' + a + ' to under ' + (a + 2) + '</strong><br>';
+    if (state.gender) {
+      html += 'Male: ' + cur.m[b] + ' &nbsp; Female: ' + cur.f[b] + '<br>';
+    }
+    html += 'Students: ' + (cur.m[b] + cur.f[b]);
+    if (state.rich || state.gender) {
+      var bc = base.m[b] + base.f[b];
+      html += '<br><span class="dim">No-bias class: ' + bc + '</span>';
+    }
+    return html;
+  }
+
+  /* ---------- scatter ---------- */
+  var pts = [], scatMeta = null;
+
+  function renderScat() {
+    var plot = $('scat'), wrap = plot.querySelector('.svgwrap');
+    var w = Math.floor(plot.clientWidth) || 360;
+    var h = Math.round(Math.max(260, Math.min(w * 0.9, 430)));
+    var m = { t: 14, r: 16, b: 46, l: 46 }, iw = w - m.l - m.r, ih = h - m.t - m.b;
+    function xs(v) { return m.l + v / 30 * iw; }
+    function ys(v) { return m.t + ih - v / 30 * ih; }
+    var cur = data.res[key()];
+    var rad = w < 400 ? 4 : 5;
+    var s = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Scatter plot of die 1 total against die 2 total, one dot per student">';
+    var t;
+    for (t = 0; t <= 30; t += 5) {
+      s += '<line class="grid" x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + ys(t) + '" y2="' + ys(t) + '"/>';
+      s += '<line class="grid" x1="' + xs(t) + '" x2="' + xs(t) + '" y1="' + m.t + '" y2="' + (m.t + ih) + '"/>';
+      s += '<text class="tick" x="' + (m.l - 8) + '" y="' + (ys(t) + 4) + '" text-anchor="end">' + t + '</text>';
+      s += '<text class="tick" x="' + xs(t) + '" y="' + (m.t + ih + 17) + '" text-anchor="middle">' + t + '</text>';
+    }
+    s += '<line class="axis" x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + ys(0) + '" y2="' + ys(0) + '"/>';
+    s += '<line class="axis" x1="' + m.l + '" x2="' + m.l + '" y1="' + m.t + '" y2="' + ys(0) + '"/>';
+    s += '<line class="ref" x1="' + xs(17.5) + '" x2="' + xs(17.5) + '" y1="' + m.t + '" y2="' + ys(0) + '"/>';
+    s += '<line class="ref" x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + ys(17.5) + '" y2="' + ys(17.5) + '"/>';
+    s += '<text class="tick" x="' + (w - m.r - 4) + '" y="' + (ys(17.5) - 5) + '" text-anchor="end">fair-dice average 17.5</text>';
+    pts = [];
+    cur.forEach(function (r) {
+      var cx = xs(r.x), cy = ys(r.y);
+      pts.push({ cx: cx, cy: cy, r: r });
+      var cls = state.gender ? (r.female ? 'pt-f' : 'pt-m') : 'pt-all';
+      s += '<circle class="pt ' + cls + '" cx="' + cx + '" cy="' + cy + '" r="' + rad + '"/>';
+    });
+    if (state.rich) {
+      cur.forEach(function (r) {
+        if (r.eligible) s += '<circle class="ring" cx="' + xs(r.x) + '" cy="' + ys(r.y) + '" r="' + (rad + 3) + '"/>';
+      });
+    }
+    s += '<circle class="hl" id="hl" cx="0" cy="0" r="' + (rad + 4) + '"/>';
+    s += '<text class="atitle" x="' + (m.l + iw / 2) + '" y="' + (h - 8) + '" text-anchor="middle">Die 1 total over 5 rolls (x)</text>';
+    s += '<text class="atitle" transform="translate(12 ' + (m.t + ih / 2) + ') rotate(-90)" text-anchor="middle">Die 2 total (y)</text>';
+    s += '</svg>';
+    wrap.innerHTML = s;
+    scatMeta = { svg: wrap.querySelector('svg') };
+  }
+
+  function studentTip(list) {
+    if (list.length > 1) {
+      return '<strong>' + list.length + ' students here</strong><br>x ' + fv(list[0].x) + ', y ' + fv(list[0].y) +
+        '<br>Students ' + list.map(function (r) { return r.i + 1; }).join(', ');
+    }
+    var r = list[0];
+    var rolls = r.rolls.map(function (o, j) {
+      return 'Roll ' + (j + 1) + ': ' + fv(o.v[0]) + (o.rr[0] ? '↻' : '') + ' + ' + fv(o.v[1]) + (o.rr[1] ? '↻' : '');
+    }).join('<br>');
+    return '<strong>Student ' + (r.i + 1) + ' · ' + (r.female ? 'Female' : 'Male') + '</strong><br>' +
+      'Total ' + fv(r.total) + ' (x ' + fv(r.x) + ', y ' + fv(r.y) + ')<br><span class="dim">' + rolls +
+      (r.rerolls ? '<br>↻ = re-rolled die' : '') + '</span>';
+  }
+
+  /* ---------- interaction ---------- */
+  function setupHover() {
+    var hp = $('hist'), htip = hp.querySelector('.ctip');
+    function onHist(e) {
+      var t = e.target.closest ? e.target.closest('[data-bin]') : null;
+      if (!t) { htip.hidden = true; return; }
+      htip.innerHTML = histTip(parseInt(t.getAttribute('data-bin'), 10));
+      placeTip(hp, htip, e);
+    }
+    hp.addEventListener('pointermove', onHist);
+    hp.addEventListener('pointerdown', onHist);
+    hp.addEventListener('pointerleave', function () { htip.hidden = true; });
+
+    var sp = $('scat'), stip = sp.querySelector('.ctip');
+    function onScat(e) {
+      if (!scatMeta) return;
+      var rect = scatMeta.svg.getBoundingClientRect();
+      var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      var best = null, bd = 18 * 18, i;
+      for (i = 0; i < pts.length; i++) {
+        var dx = pts[i].cx - mx, dy = pts[i].cy - my, d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = pts[i]; }
+      }
+      var hl = scatMeta.svg.querySelector('#hl');
+      if (!best) { stip.hidden = true; if (hl) hl.classList.remove('on'); return; }
+      var list = pts.filter(function (p) { return p.r.x === best.r.x && p.r.y === best.r.y; }).map(function (p) { return p.r; });
+      if (hl) { hl.setAttribute('cx', best.cx); hl.setAttribute('cy', best.cy); hl.classList.add('on'); }
+      stip.innerHTML = studentTip(list);
+      placeTip(sp, stip, e);
+    }
+    sp.addEventListener('pointermove', onScat);
+    sp.addEventListener('pointerdown', onScat);
+    sp.addEventListener('pointerleave', function () {
+      stip.hidden = true;
+      var hl = scatMeta && scatMeta.svg.querySelector('#hl');
+      if (hl) hl.classList.remove('on');
+    });
+    document.addEventListener('pointerdown', function (e) {
+      if (!hp.contains(e.target)) htip.hidden = true;
+      if (!sp.contains(e.target)) stip.hidden = true;
+    });
+  }
+
+  function renderAll() {
+    renderStats();
+    renderLegend();
+    renderHist();
+    renderScat();
+  }
+
+  function bindToggle(id, prop) {
+    var b = $(id);
+    b.addEventListener('click', function () {
+      state[prop] = !state[prop];
+      b.setAttribute('aria-checked', state[prop] ? 'true' : 'false');
+      renderAll();
+    });
+  }
+
+  newClass();
+  bindToggle('sw-rich', 'rich');
+  bindToggle('sw-gender', 'gender');
+  $('reroll').addEventListener('click', function () { newClass(); renderAll(); });
+  setupHover();
+  renderAll();
+
+  var pending = false;
+  function onResize() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function () { pending = false; renderHist(); renderScat(); });
+  }
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(onResize);
+    ro.observe($('hist'));
+    ro.observe($('scat'));
+  } else {
+    window.addEventListener('resize', onResize);
+  }
+})();
+</script>
